@@ -3,12 +3,7 @@ import 'package:meta/meta.dart';
 
 @internal
 class GlassDragBuilder extends StatefulWidget {
-  const GlassDragBuilder({
-    required this.builder,
-    this.behavior = HitTestBehavior.opaque,
-    this.child,
-    super.key,
-  });
+  const GlassDragBuilder({required this.builder, this.behavior = HitTestBehavior.opaque, this.child, super.key});
 
   final HitTestBehavior behavior;
 
@@ -29,17 +24,27 @@ class _GlassDragBuilderState extends State<GlassDragBuilder> {
   Widget build(BuildContext context) {
     return Listener(
       behavior: widget.behavior,
-      onPointerDown: (event) => setState(() {
+      // Pointer events can be delivered after this state is disposed
+      // (drag-then-navigate); guard every callback or setState throws
+      // "Null check operator used on a null value" via _element!.
+      onPointerDown: (event) {
+        if (!mounted) return;
         setState(() {
           currentDragOffset = Offset.zero;
         });
-      }),
-      onPointerMove: (event) => setState(() {
-        currentDragOffset = (currentDragOffset ?? Offset.zero) + event.delta;
-      }),
-      onPointerUp: (event) => setState(() {
-        currentDragOffset = null;
-      }),
+      },
+      onPointerMove: (event) {
+        if (!mounted) return;
+        setState(() {
+          currentDragOffset = (currentDragOffset ?? Offset.zero) + event.delta;
+        });
+      },
+      onPointerUp: (event) {
+        if (!mounted) return;
+        setState(() {
+          currentDragOffset = null;
+        });
+      },
       child: widget.builder(context, currentDragOffset, widget.child),
     );
   }
