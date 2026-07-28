@@ -60,48 +60,10 @@ float getShapeSDF(float type, vec2 p, vec2 center, vec2 size, float r) {
     return 1e9; // none
 }
 
-float getShapeSDFFromArray(int index, vec2 p, float shapeData[MAX_SHAPES * 6]) {
-    int baseIndex = index * 6;
-    float type = shapeData[baseIndex];
-    vec2 center = vec2(shapeData[baseIndex + 1], shapeData[baseIndex + 2]);
-    vec2 size = vec2(shapeData[baseIndex + 3], shapeData[baseIndex + 4]);
-    float cornerRadius = shapeData[baseIndex + 5];
-    
-    return getShapeSDF(type, p, center, size, cornerRadius);
-}
-
-float sceneSDF(vec2 p, int numShapes, float shapeData[MAX_SHAPES * 6], float blend) {
-    if (numShapes == 0) {
-        return 1e9;
-    }
-    
-    float result = getShapeSDFFromArray(0, p, shapeData);
-    
-    // Optimized: unroll for common cases (1-4 shapes), use loop for 5+ shapes
-    if (numShapes <= 4) {
-        // Fully unrolled for 1-4 shapes (covers 90%+ of use cases)
-        if (numShapes >= 2) {
-            float shapeSDF = getShapeSDFFromArray(1, p, shapeData);
-            result = smoothUnion(result, shapeSDF, blend);
-        }
-        if (numShapes >= 3) {
-            float shapeSDF = getShapeSDFFromArray(2, p, shapeData);
-            result = smoothUnion(result, shapeSDF, blend);
-        }
-        if (numShapes >= 4) {
-            float shapeSDF = getShapeSDFFromArray(3, p, shapeData);
-            result = smoothUnion(result, shapeSDF, blend);
-        }
-    } else {
-        // Dynamic loop for 5+ shapes (uncommon cases)
-        for (int i = 1; i < min(numShapes, MAX_SHAPES); i++) {
-            float shapeSDF = getShapeSDFFromArray(i, p, shapeData);
-            result = smoothUnion(result, shapeSDF, blend);
-        }
-    }
-    
-    return result;
-}
+// getShapeSDFFromArray and sceneSDF live in scene_sdf.glsl, which must be
+// included after the uShapeData uniform is declared. They used to take the
+// shape array as a parameter, but GLSL copies array arguments by value and SkSL
+// forbids the array initializer that produces.
 
 // Calculate 3D normal using derivatives (shader-specific normal calculation)
 vec3 getNormal(float sd, float thickness) {

@@ -34,8 +34,11 @@ float uRefractiveIndex = uOpticalProps.x;
 float uBlend = uOpticalProps.w;
 float uSaturation = uLightConfig.w;
 
-layout(location = 5) uniform float uNumShapes;             // numShapes  
+layout(location = 5) uniform float uNumShapes;             // numShapes
 layout(location = 6) uniform float uShapeData[MAX_SHAPES * 6];
+
+// Must follow the uShapeData declaration — see scene_sdf.glsl.
+#include "scene_sdf.glsl"
 
 uniform sampler2D uBlurredTexture;
 layout(location = 0) out vec4 fragColor;
@@ -52,7 +55,7 @@ void main() {
     #endif
     
     // Generate shape and calculate normal using shader-specific method
-    float sd = sceneSDF(fragCoord, int(uNumShapes), uShapeData, uBlend);
+    float sd = sceneSDF(fragCoord, int(uNumShapes), uBlend);
     float foregroundAlpha = 1.0 - smoothstep(-2.0, 0.0, sd);
 
     // Early discard for pixels outside glass shapes to reduce overdraw

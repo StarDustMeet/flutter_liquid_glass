@@ -16,6 +16,9 @@ layout(location = 1) uniform vec4 uOpticalProps;
 layout(location = 2) uniform float uNumShapes;
 layout(location = 3) uniform float uShapeData[MAX_SHAPES * 6];
 
+// Must follow the uShapeData declaration — see scene_sdf.glsl.
+#include "scene_sdf.glsl"
+
 float uThickness = uOpticalProps.z;
 float uRefractiveIndex = uOpticalProps.x;
 float uBlend = uOpticalProps.w;
@@ -31,7 +34,7 @@ void main() {
         vec2 screenUV = vec2(fragCoord.x / uSize.x, fragCoord.y / uSize.y);
     #endif
     
-    float sd = sceneSDF(fragCoord, int(uNumShapes), uShapeData, uBlend);
+    float sd = sceneSDF(fragCoord, int(uNumShapes), uBlend);
     
     float foregroundAlpha = 1.0 - smoothstep(-2.0, 0.0, sd);
     if (foregroundAlpha < 0.01) {
