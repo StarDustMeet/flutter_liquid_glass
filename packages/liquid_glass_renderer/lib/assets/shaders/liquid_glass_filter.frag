@@ -14,6 +14,10 @@ precision mediump float;
 #define DEBUG_NORMALS 0
 
 #include <flutter/runtime_effect.glsl>
+// Declared before the include: shared.glsl reaches the texture through this
+// macro, because SkSL will not take a sampler as a parameter (STA-463).
+uniform sampler2D uBlurredTexture;
+#define LG_BACKGROUND_TEXTURE uBlurredTexture
 #include "shared.glsl"
 #include "sdf.glsl"
 
@@ -40,7 +44,6 @@ layout(location = 6) uniform float uShapeData[MAX_SHAPES * 6];
 // Must follow the uShapeData declaration — see scene_sdf.glsl.
 #include "scene_sdf.glsl"
 
-uniform sampler2D uBlurredTexture;
 layout(location = 0) out vec4 fragColor;
 
 void main() {
@@ -65,7 +68,11 @@ void main() {
         return;
     }
 
-    vec3 normal = getNormal(sd, uThickness);
+    vec3 normal = getNormal(
+        sceneGradient(fragCoord, sd, int(uNumShapes), uBlend),
+        sd,
+        uThickness
+    );
     
     // Use shared rendering pipeline
     fragColor = renderLiquidGlass(
@@ -80,7 +87,6 @@ void main() {
         uLightDirection, 
         uLightIntensity, 
         uAmbientStrength, 
-        uBlurredTexture, 
         normal,
         foregroundAlpha,
         0.0,

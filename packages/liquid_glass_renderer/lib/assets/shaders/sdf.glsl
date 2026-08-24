@@ -66,9 +66,12 @@ float getShapeSDF(float type, vec2 p, vec2 center, vec2 size, float r) {
 // forbids the array initializer that produces.
 
 // Calculate 3D normal using derivatives (shader-specific normal calculation)
-vec3 getNormal(float sd, float thickness) {
-    float dx = dFdx(sd);
-    float dy = dFdy(sd);
+// Takes the gradient rather than computing it: sdf.glsl is included BEFORE
+// scene_sdf.glsl, so sceneSDF is not visible here, and the SkSL fallback
+// needs the SDF to reconstruct what dFdx cannot give it (STA-463).
+vec3 getNormal(vec2 grad, float sd, float thickness) {
+    float dx = grad.x;
+    float dy = grad.y;
     
     // The cosine and sine between normal and the xy plane
     float n_cos = max(thickness + sd, 0.0) / thickness;

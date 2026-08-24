@@ -1,3 +1,16 @@
+// SkSL forbids passing a sampler as a function parameter ("parameters of type
+// 'shader' not allowed"), and Flutter compiles these shaders for the Skia
+// fallback on Android as well as for Impeller. Every downstream "unknown
+// identifier" error came from this one rejection (StarDust: STA-463).
+//
+// The texture is reached through a macro instead. Each including shader
+// declares its own sampler uniform ABOVE the include and defines the macro to
+// point at it, because the names differ: uBlurredTexture in the filter shader,
+// uBackgroundTexture in the arbitrary one.
+#ifndef LG_BACKGROUND_TEXTURE
+#error "define LG_BACKGROUND_TEXTURE to your sampler uniform before including shared.glsl"
+#endif
+
 // Copyright 2025, Tim Lehmann for whynotmake.it
 //
 // Shared rendering functions for liquid glass shaders
@@ -164,7 +177,7 @@ float calculateDispersiveIndex(float baseIndex, float chromaticAberration, float
 }
 
 // Calculate refraction with physically-based chromatic aberration
-vec4 calculateRefraction(vec2 screenUV, vec3 normal, float height, float thickness, float refractiveIndex, float chromaticAberration, vec2 uSize, sampler2D backgroundTexture, float blurRadius, out vec2 refractionDisplacement) {
+vec4 calculateRefraction(vec2 screenUV, vec3 normal, float height, float thickness, float refractiveIndex, float chromaticAberration, vec2 uSize, float blurRadius, out vec2 refractionDisplacement) {
     float baseHeight = thickness * 8.0;
     vec3 incident = vec3(0.0, 0.0, -1.0);
     
@@ -181,7 +194,7 @@ vec4 calculateRefraction(vec2 screenUV, vec3 normal, float height, float thickne
     // Optimize for the most common case: no chromatic aberration
     if (chromaticAberration < 0.001) {
         vec2 refractedUV = screenUV + baseDisplacement * invUSize;
-        return texture(backgroundTexture, refractedUV);
+        return texture(LG_BACKGROUND_TEXTURE, refractedUV);
     }
     
     // Chromatic aberration path - 3 texture samples only
@@ -194,9 +207,9 @@ vec4 calculateRefraction(vec2 screenUV, vec3 normal, float height, float thickne
     vec2 blueUV = screenUV + blueOffset * invUSize;
 
     // Single texture sample per channel - 3 samples total
-    float red = texture(backgroundTexture, redUV).r;
-    vec4 greenSample = texture(backgroundTexture, greenUV);
-    float blue = texture(backgroundTexture, blueUV).b;
+    float red = texture(LG_BACKGROUND_TEXTURE, redUV).r;
+    vec4 greenSample = texture(LG_BACKGROUND_TEXTURE, greenUV);
+    float blue = texture(LG_BACKGROUND_TEXTURE, blueUV).b;
 
     return vec4(red, greenSample.g, blue, greenSample.a);
 }
@@ -236,12 +249,12 @@ vec4 applyGlassColor(vec4 liquidColor, vec4 glassColor) {
 }
 
 // Complete liquid glass rendering pipeline
-vec4 renderLiquidGlass(vec2 screenUV, vec2 p, vec2 uSize, float sd, float thickness, float refractiveIndex, float chromaticAberration, vec4 glassColor, vec2 lightDirection, float lightIntensity, float ambientStrength, sampler2D backgroundTexture, vec3 normal, float foregroundAlpha, float gaussianBlur, float saturation) {
+vec4 renderLiquidGlass(vec2 screenUV, vec2 p, vec2 uSize, float sd, float thickness, float refractiveIndex, float chromaticAberration, vec4 glassColor, vec2 lightDirection, float lightIntensity, float ambientStrength, vec3 normal, float foregroundAlpha, float gaussianBlur, float saturation) {
     float height = getHeight(sd, thickness);
     
     // Calculate refraction & chromatic aberration
     vec2 refractionDisplacement;
-    vec4 refractColor = calculateRefraction(screenUV, normal, height, thickness, refractiveIndex, chromaticAberration, uSize, backgroundTexture, gaussianBlur, refractionDisplacement);
+    vec4 refractColor = calculateRefraction(screenUV, normal, height, thickness, refractiveIndex, chromaticAberration, uSize, gaussianBlur, refractionDisplacement);
     
     // Get background color for lighting calculations
     vec3 backgroundColor = refractColor.rgb;

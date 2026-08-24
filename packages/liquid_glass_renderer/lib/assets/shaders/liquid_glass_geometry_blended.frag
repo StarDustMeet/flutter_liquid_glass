@@ -42,13 +42,14 @@ void main() {
         return;
     }
     
-    float dx = dFdx(sd);
-    float dy = dFdy(sd);
-    
-    float n_cos = max(uThickness + sd, 0.0) / uThickness;
-    float n_sin = sqrt(max(0.0, 1.0 - n_cos * n_cos));
-    
-    vec3 normal = normalize(vec3(dx * n_cos, dy * n_cos, n_sin));
+    // Was an inline copy of getNormal. It is the shared one now, so the SkSL
+    // fallback gets the same treatment here as in the filter shader
+    // (STA-463).
+    vec3 normal = getNormal(
+        sceneGradient(fragCoord, sd, int(uNumShapes), uBlend),
+        sd,
+        uThickness
+    );
     
     if (sd >= 0.0 || uThickness <= 0.0) {
         fragColor = vec4(0.0);

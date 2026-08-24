@@ -10,6 +10,10 @@ precision mediump float;
 #define DEBUG_BLUR_MATTE 0
 
 #include <flutter/runtime_effect.glsl>
+// See the filter shader: the sampler cannot be a parameter, so shared.glsl
+// reads it through this macro (STA-463).
+uniform sampler2D uBackgroundTexture;
+#define LG_BACKGROUND_TEXTURE uBackgroundTexture
 #include "shared.glsl"
 
 // Optimized uniform layout - grouped into vectors for 50% fewer API calls
@@ -33,7 +37,6 @@ vec2 uOffset = uTransformData.xy;
 float uSaturation = uLightConfig.w;
 float uGaussianBlur = uOpticalProps.w;
 
-uniform sampler2D uBackgroundTexture;
 uniform sampler2D uForegroundTexture;
 
 // A pre-blurred version of the foreground texture.
@@ -86,38 +89,8 @@ vec2 findShapeCenter(vec2 currentUV) {
 
 // Helper for robust, multi-scale gradient calculation using a Sobel operator.
 // This is more noise-resistant than simple central differences.
-vec2 calculateGradient(sampler2D tex, vec2 uv, vec2 texelSize) {
-    vec2 gradient = vec2(0.0);
-    float totalWeight = 0.0;
-
-    // Sample at different scales (1x, 2x, 4x) to capture both fine and broad details.
-    // This creates a smooth gradient, even from noisy or wide-blurred textures.
-    for (float scale = 1.0; scale <= 4.0; scale *= 2.0) {
-        float weight = 1.0 / scale;
-        vec2 d = texelSize * scale;
-
-        // Sample the 3x3 neighborhood at the current scale.
-        float tl = texture(tex, uv - d).a;
-        float tm = texture(tex, uv - vec2(0.0, d.y)).a;
-        float tr = texture(tex, uv + vec2(d.x, -d.y)).a;
-        float ml = texture(tex, uv - vec2(d.x, 0.0)).a;
-        float mr = texture(tex, uv + vec2(d.x, 0.0)).a;
-        float bl = texture(tex, uv + vec2(-d.x, d.y)).a;
-        float bm = texture(tex, uv + vec2(0.0, d.y)).a;
-        float br = texture(tex, uv + d).a;
-        
-        // Apply the Sobel operator to calculate the gradient for this scale.
-        float sobelX = (tr + 2.0 * mr + br) - (tl + 2.0 * ml + bl);
-        float sobelY = (bl + 2.0 * bm + br) - (tl + 2.0 * tm + tr);
-
-        gradient += vec2(sobelX, sobelY) * weight;
-        totalWeight += weight;
-    }
-    
-    // Normalize the summed gradients.
-    // The 0.125 factor is an approximation to normalize the Sobel kernel (1/8).
-    return (gradient / totalWeight) * 0.125;
-}
+// calculateGradient(sampler2D, ...) removed: never called, and its sampler
+// parameter is exactly what SkSL rejects (STA-463).
 
 vec3 getReconstructedNormal(vec2 p, float thickness) {
     vec2 uv = p / uForegroundSize;
@@ -217,7 +190,6 @@ void main() {
         uLightDirection, 
         uLightIntensity, 
         uAmbientStrength, 
-        uBackgroundTexture, 
         normal,
         foregroundColor.a,
         uGaussianBlur,
