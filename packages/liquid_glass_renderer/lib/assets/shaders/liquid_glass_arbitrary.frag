@@ -62,10 +62,14 @@ vec2 findShapeCenter(vec2 currentUV) {
     vec2 centerSum = vec2(0.0);
     float totalAlpha = 0.0;
     
-    // Sample in a reasonable radius around the current point
-    int sampleRadius = 10;
-    for (int y = -sampleRadius; y <= sampleRadius; y++) {
-        for (int x = -sampleRadius; x <= sampleRadius; x++) {
+    // Sample in a reasonable radius around the current point.
+    //
+    // A #define rather than a local: SkSL requires the loop initializer to be
+    // a constant expression, and `-sampleRadius` off a local int is not one
+    // even though the value never changes (StarDust: STA-463).
+    #define LG_SAMPLE_RADIUS 10
+    for (int y = -LG_SAMPLE_RADIUS; y <= LG_SAMPLE_RADIUS; y++) {
+        for (int x = -LG_SAMPLE_RADIUS; x <= LG_SAMPLE_RADIUS; x++) {
             vec2 sampleUV = currentUV + vec2(float(x), float(y)) * texelSize;
             
             // Make sure we're within texture bounds
